@@ -42,33 +42,30 @@ Synthetic assets only: Line3, Press12, OvenA, WarehouseB. Site name is `north`. 
 
 ## Run it
 
-Needs Python 3.11+, [Ollama](https://ollama.com/) with `llama3.2:3b` (or any chat model), and Docker for Langfuse.
+Needs Python 3.11+, [uv](https://docs.astral.sh/uv/), [Ollama](https://ollama.com/) with `llama3.2:3b` (or any chat model), and Docker for Langfuse.
 
 ```bash
-cd experiments
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example ../.env
+uv sync
+cp .env.example .env
 ```
 
 **Phoenix** — no account:
 
 ```bash
 uvx arize-phoenix serve          # http://localhost:6006
-python run_phoenix.py
+uv run python experiments/run_phoenix.py
 ```
 
 **Langfuse** — local Docker, then a project on *your* UI (not Langfuse Cloud):
 
 ```bash
-../scripts/start-langfuse.sh     # http://localhost:3000
+./scripts/start-langfuse.sh      # http://localhost:3000
 # sign up locally, paste LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY into .env
-python run_langfuse.py
+uv run python experiments/run_langfuse.py
 ```
 
 ```bash
-python compare_results.py
+uv run python experiments/compare_results.py
 ```
 
 Open the **Line 3 scrap** trace and the **Line 9 missing** trace in both UIs. That pair is the comparison. A small local model may take a clumsy tool path; you are judging whether the UI shows the path, not whether llama3.2 is a plant expert.
