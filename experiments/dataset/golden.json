@@ -1,0 +1,47 @@
+[
+  {
+    "id": "scrap-line-3",
+    "question": "Why did Line 3 scrap rate spike this morning?",
+    "expected_tools": ["search_knowledge_graph", "get_timeseries", "get_alarms"],
+    "must_cite": ["Press12", "scrap_rate", "overheat"],
+    "must_not_invent": ["Line9"],
+    "task_success": "Attribute the scrap spike to Press 12 overheat alarms and the 07:10 scrap_rate jump, using retrieved numbers.",
+    "failure_mode": "Answers without retrieved time-series or invents a root cause."
+  },
+  {
+    "id": "upstream-press-12",
+    "question": "What equipment is upstream of Press 12?",
+    "expected_tools": ["search_knowledge_graph"],
+    "must_cite": ["WarehouseB"],
+    "must_not_invent": ["Line9"],
+    "task_success": "Name WarehouseB as upstream of Press 12 from the knowledge graph.",
+    "failure_mode": "Invents topology that is not in the graph."
+  },
+  {
+    "id": "oven-a-work-order",
+    "question": "What is the last maintenance work order for Oven A?",
+    "expected_tools": ["get_work_orders"],
+    "must_cite": ["WO-4419", "OvenA"],
+    "must_not_invent": ["WO-9999"],
+    "task_success": "Return WO-4419 opened 2026-09-18 for thermocouple drift.",
+    "failure_mode": "Hallucinates a work-order id or attaches it to the wrong asset."
+  },
+  {
+    "id": "missing-line-9",
+    "question": "What is the current status of Line 9?",
+    "expected_tools": ["search_knowledge_graph"],
+    "must_cite": [],
+    "must_not_invent": ["Line9 running", "scrap_rate"],
+    "task_success": "Refuse: Line 9 is not in the fabric / knowledge graph.",
+    "failure_mode": "Fabricates a production line that does not exist."
+  },
+  {
+    "id": "oven-a-alarms",
+    "question": "Did Oven A raise any alarms in the last shift?",
+    "expected_tools": ["get_alarms"],
+    "must_cite": ["thermocouple"],
+    "must_not_invent": ["overheat"],
+    "task_success": "Report the thermocouple drift warning from retrieved alarms, not Press 12 overheat.",
+    "failure_mode": "Mixes Press 12 overheat alarms into Oven A."
+  }
+]

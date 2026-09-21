@@ -1,0 +1,10 @@
+.env
+.venv/
+.local/
+__pycache__/
+*.pyc
+experiments/results/*.json
+.DS_Store
+
+# Employer-internal write-up. Do not publish.
+docs/internal/
