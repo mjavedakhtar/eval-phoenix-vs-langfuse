@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+from phoenix_endpoint import traces_endpoint
 from phoenix.otel import register
 from openinference.instrumentation.langchain import LangChainInstrumentor
 
@@ -27,7 +28,8 @@ from evals import score_run, summarize
 def main() -> None:
     register(
         project_name=os.getenv("PHOENIX_PROJECT_NAME", "data-fabric-agent"),
-        endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006"),
+        endpoint=traces_endpoint(),
+        protocol="http/protobuf",
         auto_instrument=False,
     )
     LangChainInstrumentor().instrument()

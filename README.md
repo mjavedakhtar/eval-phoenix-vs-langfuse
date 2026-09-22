@@ -74,6 +74,19 @@ Fill [docs/comparison.md](docs/comparison.md) after you have screenshots. That p
 
 ---
 
+## Second experiment: MCP server only (no agent)
+
+This is separate. A small MCP server exposes the same plant tools. A client calls them. **No LLM.**
+
+```bash
+uvx arize-phoenix serve          # if it is not already running
+uv run python experiments/run_mcp_phoenix.py
+```
+
+In Phoenix open project **`mcp-plant-fabric`**, not `data-fabric-agent`. Details: [docs/mcp-phoenix.md](docs/mcp-phoenix.md).
+
+---
+
 ## Scorecard
 
 | Dimension | Phoenix | Langfuse |

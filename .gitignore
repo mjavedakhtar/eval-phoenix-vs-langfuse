@@ -4,6 +4,7 @@
 __pycache__/
 *.pyc
 experiments/results/*.json
+experiments/results/*.log
 .DS_Store
 
 # Employer-internal write-up. Do not publish.
