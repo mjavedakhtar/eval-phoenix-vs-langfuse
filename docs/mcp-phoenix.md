@@ -1,35 +1,43 @@
-# MCP server traces in Phoenix (no agent)
+# MCP server traces (no agent)
 
-This is a **second** experiment. It is not the Phoenix vs Langfuse agent comparison.
+This is a **second** experiment. It is not the Phoenix vs Langfuse agent comparison (Line 3 / Line 9). Same FastMCP server, same plant tools, **no LangGraph and no LLM**. A small client calls the tools over MCP HTTP.
 
-## What it is
+The MCP process registers OpenTelemetry **before** FastMCP is imported, in its own process. That avoids the “another TracerProvider is already in place, so the project is not auto-created” problem.
 
-An MCP server that exposes the same fake plant tools (graph, time series, alarms, work orders). A small client calls those tools over MCP. There is **no LangGraph and no LLM**.
+## Phoenix
 
-Phoenix should show tool-call spans in a project named **`mcp-plant-fabric`**.
+Project **`mcp-plant-fabric`** (auto-created).
 
 ![mcp-plant-fabric spans](images/phoenix/05-mcp-plant-fabric-spans.png)
 
-Captured: **18** spans, `parent_id is None` roots, including `tools/call get_alarms`, `tools/call get_work_orders`, `tools/call search_knowledge_graph`, `tools/call get_timeseries`, plus `tools/list` and `server/discover`. Latency P50 **0 ms** (no model). Project auto-created — it does not dump into `default`.
-
-## Why it exists
-
-Someone may care about logging the **tool server**, not the agent. This checks: can Phoenix record MCP traffic if nothing “agent-like” is running?
-
-It also starts the server in its **own process** and registers Phoenix’s tracer there first. That avoids the “another trace provider is already in place, so the project is not auto-created” problem.
-
-## How to run
-
-Phoenix must already be up (`uvx arize-phoenix serve`).
+Captured: **18** spans, `parent_id is None` roots, including `tools/call get_alarms`, `tools/call get_work_orders`, `tools/call search_knowledge_graph`, `tools/call get_timeseries`, plus `tools/list` and `server/discover`. Latency P50 **0 ms** (no model).
 
 ```bash
+uvx arize-phoenix serve          # if it is not already running
 uv run python experiments/run_mcp_phoenix.py
 ```
 
 Then in Phoenix: **Projects → mcp-plant-fabric** (not `default`, not `data-fabric-agent`).
 
-You should see `tools/call …` spans. Line 9 is the graph lookup that returns no hits.
+## Langfuse
+
+Same server, OTLP HTTP to local Langfuse (`/api/public/otel/v1/traces`). No LangChain callback. Traces land in project `data-fabric-agent` with session/tag **`mcp-plant-fabric`**.
+
+![Langfuse MCP spans](images/langfuse/05-mcp-plant-fabric-spans.png)
+
+Captured: `server/discover`, `tools/list`, `search_knowledge_graph_tool`, `get_timeseries_tool`, `get_alarms_tool`, `get_work_orders_tool`. Tag `mcp`. Session `mcp-plant-fabric` (15 traces). Default session view **All observations with I/O** hides these spans (no LLM input/output); switch to **All observations** or use the Tracing table.
+
+```bash
+./scripts/start-langfuse.sh      # if it is not already running
+uv run python experiments/run_mcp_langfuse.py
+```
+
+Then in Langfuse: **Sessions → mcp-plant-fabric**, or Tracing and the `mcp` tag.
+
+## Why it exists
+
+Someone may care about logging the **tool server**, not the agent. This checks: can the recorder show MCP traffic if nothing “agent-like” is running?
 
 ## What this is not
 
-It does not replace the agent lab. It does not prove Langfuse. It does not use a production MCP stack — FastMCP + the same synthetic plant.
+It does not replace the agent lab. It does not use a production MCP stack — FastMCP + the same synthetic plant.

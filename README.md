@@ -20,15 +20,15 @@ Chatbot evals score the final answer. Agentic evals have to score the **path**.
 
 Phoenix is the lightest self-host (OpenTelemetry / OpenInference, one process). Langfuse is the production-shaped self-host (Docker Compose, traces, datasets, scores, prompt management, MIT core). LangSmith is intentionally out: the useful product is cloud-hosted.
 
-> **Lab finding — self-host friction is not theoretical.** Phoenix: `uvx arize-phoenix serve`, UI on `:6006` in minutes. Langfuse: official Compose (web, worker, Postgres, ClickHouse, Redis, Minio). First boot on a laptop VM pulled six images, then ran **49 ClickHouse migrations** with the UI silent the whole time; a `lab@localhost` init email then 500'd the app (`z.email()` rejects it); recreating the web container flapped Minio/Postgres healthchecks. Trace screenshots for Langfuse are **not** done until that UI stays up. Details: [docs/comparison.md](docs/comparison.md).
+> **Lab finding — self-host friction is not theoretical.** Phoenix: `uvx arize-phoenix serve`, UI on `:6006` in minutes. Langfuse: official Compose (web, worker, Postgres, ClickHouse, Redis, Minio). First boot on an **x86_64 qemu Colima** on an M3 Pro pulled six images, then ran **49 ClickHouse migrations**; a `lab@localhost` init email 500'd the app (`z.email()` rejects it); recreating web flapped Minio/Postgres healthchecks; Tracing then timed out on `events.getSdkVersionInfo` while ClickHouse sat at ~1000% CPU. **Native aarch64 Colima + arm64 images** made the same UI fast, and Line 3 / Line 9 trees are now captured. Details: [docs/comparison.md](docs/comparison.md).
 
-**Resume line (copy):** Compared self-hosted LLM observability (Arize Phoenix vs Langfuse) on a multi-tool diagnostic agent, with code evals for groundedness, tool trajectory, and hallucination traps. Phoenix traces landed in minutes; Langfuse's Compose stack was the costly half of time-to-first-trace.
+**Resume line (copy):** Compared self-hosted LLM observability (Arize Phoenix vs Langfuse) on a multi-tool diagnostic agent, with code evals for groundedness, tool trajectory, and hallucination traps. Both UIs showed the skipped Line 3 hops and the Line 9 “no alarms” miss. Phoenix was minutes to first trace; Langfuse’s Compose stack was the costly half of time-to-first-trace.
 
 ---
 
-## Lab snapshot (Phoenix traces done; Langfuse stack still first-booting)
+## Lab snapshot (both recorders scored)
 
-Local Ollama `llama3.2:3b`, five golden questions, code evals in `experiments/evals.py`. Langfuse is instrumented (`run_langfuse.py`). **Trace fidelity for Langfuse is not scored yet** — we spent the lab day on Compose, not on Line 3 / Line 9 in that UI.
+Local Ollama `llama3.2:3b`, five golden questions, code evals in `experiments/evals.py`. Same agent, same scores on Phoenix and Langfuse — the 40% is the model, not the backend.
 
 | | Rate | What it means |
 | --- | ---: | --- |
@@ -43,7 +43,13 @@ The 40% is the point of the lab, not a bug in Phoenix. The model sounded fine. T
   <img src="docs/images/phoenix/01-projects.png" alt="Phoenix projects: mcp-plant-fabric 18 traces, data-fabric-agent 5 traces, default empty" width="100%">
 </p>
 
-<p align="center"><sub><b>Projects after the lab.</b> Named projects, not <code>default</code>. Agent runs land in <code>data-fabric-agent</code>. MCP-only traffic lands in <code>mcp-plant-fabric</code>.</sub></p>
+<p align="center"><sub><b>Phoenix after the lab.</b> Named projects, not <code>default</code>. Agent runs land in <code>data-fabric-agent</code>. MCP-only traffic lands in <code>mcp-plant-fabric</code>.</sub></p>
+
+<p align="center">
+  <img src="docs/images/langfuse/02-traces-list.png" alt="Langfuse Tracing table with five LangGraph rows for the golden set" width="100%">
+</p>
+
+<p align="center"><sub><b>Langfuse Tracing</b> after the same five questions. All rows are named <code>LangGraph</code> — you open a row to see the question. Catchable, extra click vs Phoenix.</sub></p>
 
 ---
 
@@ -59,7 +65,13 @@ Golden path: knowledge graph → scrap time series → alarms. The agent only ca
   <img src="docs/images/phoenix/03-line3-scrap-trace.png" alt="Phoenix trace tree for Line 3 scrap: only get_timeseries_tool, input Line3 scrap_rate, output 8.7 percent at 07:10" width="100%">
 </p>
 
-<p align="center"><sub>Tree: <code>LangGraph → tools → get_timeseries_tool</code>. No graph. No alarms. Input <code>{"asset": "Line3", "metric": "scrap_rate"}</code>.</sub></p>
+<p align="center"><sub>Phoenix: <code>LangGraph → tools → get_timeseries_tool</code>. No graph. No alarms. Input <code>{"asset": "Line3", "metric": "scrap_rate"}</code>.</sub></p>
+
+<p align="center">
+  <img src="docs/images/langfuse/03-line3-scrap-trace.png" alt="Langfuse trace tree for Line 3 scrap: only get_timeseries_tool under tools" width="100%">
+</p>
+
+<p align="center"><sub>Langfuse, same run: <code>LangGraph → tools → get_timeseries_tool</code>. Same skipped hops. Catchable in one expand.</sub></p>
 
 ### 2. Line 9 missing asset — wrong tool, no refusal
 
@@ -69,7 +81,13 @@ Golden path: search the graph, get zero hits, refuse. The agent called `get_alar
   <img src="docs/images/phoenix/04-line9-missing-trace.png" alt="Phoenix trace tree for Line 9: get_alarms_tool with Asset not in fabric error" width="100%">
 </p>
 
-<p align="center"><sub>Input is the missing asset. Output is an empty alarm list plus <code>Asset not in fabric</code>. A reviewer does not need to guess.</sub></p>
+<p align="center"><sub>Phoenix: input is the missing asset. Output is an empty alarm list plus <code>Asset not in fabric</code>.</sub></p>
+
+<p align="center">
+  <img src="docs/images/langfuse/04-line9-missing-trace.png" alt="Langfuse trace tree for Line 9: only get_alarms_tool under tools" width="100%">
+</p>
+
+<p align="center"><sub>Langfuse: <code>tools → get_alarms_tool</code> only. Answer in the panel: “Line 9 is not currently experiencing any alarms.” Same miss as Phoenix.</sub></p>
 
 Full per-case table and the Phoenix vs Langfuse scorecard: **[docs/comparison.md](docs/comparison.md)**.
 
@@ -87,6 +105,7 @@ experiments/
   run_langfuse.py
   mcp_server.py       # FastMCP, no LLM — second experiment
   run_mcp_phoenix.py
+  run_mcp_langfuse.py
 ```
 
 Synthetic assets only: Line3, Press12, OvenA, WarehouseB. Site name is `north`. Nothing here is operational data.
@@ -119,24 +138,33 @@ Open project **`data-fabric-agent`**, not `default`. Collector URL must include 
 uv run python experiments/run_langfuse.py
 ```
 
-Open the **Line 3 scrap** trace and the **Line 9 missing** trace in both UIs. That pair is the comparison. If Langfuse is still migrating, it will refuse connections — that is first-boot, not a missing exporter.
+Open the **Line 3 scrap** trace and the **Line 9 missing** trace in both UIs. That pair is the comparison. On Apple Silicon, Colima must be **aarch64** (`colima start --arch aarch64 --vm-type vz`); an x86_64 qemu VM will look like the stack is “too heavy” when it is really emulating amd64 ClickHouse. If Langfuse is still migrating, it will refuse connections — that is first-boot, not a missing exporter.
 
 ---
 
 ## Second experiment: MCP server only (no agent)
 
-A small MCP server exposes the same plant tools. A client calls them. **No LLM.** Phoenix still records `tools/call …` spans in its own project, because the MCP process registers the tracer first.
+A small MCP server exposes the same plant tools. A client calls them. **No LLM.** Phoenix records `tools/call …` spans in project `mcp-plant-fabric`. Langfuse records the same methods over OTLP (session/tag `mcp-plant-fabric`). The MCP process registers the tracer first.
 
 ```bash
 uvx arize-phoenix serve          # if it is not already running
 uv run python experiments/run_mcp_phoenix.py
+
+./scripts/start-langfuse.sh      # if it is not already running
+uv run python experiments/run_mcp_langfuse.py
 ```
 
 <p align="center">
   <img src="docs/images/phoenix/05-mcp-plant-fabric-spans.png" alt="Phoenix mcp-plant-fabric project with tools/call spans for alarms, work orders, knowledge graph, and time series" width="100%">
 </p>
 
-<p align="center"><sub><code>mcp-plant-fabric</code>: 18 spans, including <code>tools/call get_alarms</code>, <code>search_knowledge_graph</code>, <code>get_timeseries</code>, <code>get_work_orders</code>.</sub></p>
+<p align="center"><sub>Phoenix <code>mcp-plant-fabric</code>: 18 spans, including <code>tools/call get_alarms</code>, <code>search_knowledge_graph</code>, <code>get_timeseries</code>, <code>get_work_orders</code>.</sub></p>
+
+<p align="center">
+  <img src="docs/images/langfuse/05-mcp-plant-fabric-spans.png" alt="Langfuse Tracing table with MCP tool spans tagged mcp: get_alarms, tools/list, get_work_orders, search_knowledge_graph, get_timeseries, server/discover" width="100%">
+</p>
+
+<p align="center"><sub>Langfuse: same MCP methods, tag <code>mcp</code>, session <code>mcp-plant-fabric</code>. No LangGraph on those rows.</sub></p>
 
 Details: [docs/mcp-phoenix.md](docs/mcp-phoenix.md).
 
@@ -146,10 +174,11 @@ Details: [docs/mcp-phoenix.md](docs/mcp-phoenix.md).
 
 | Dimension | Phoenix | Langfuse |
 | --- | --- | --- |
-| Nested LLM + tool + retrieval spans | **yes** — LangGraph tree, ChatOllama, tool I/O | not scored (UI never stayed up) |
-| Time-to-first-trace | minutes, one process | **hours** on first Compose boot (pull + 49 ClickHouse migrations); UI silent until that finishes |
-| Datasets → experiments → regression | code evals in-repo; Phoenix Datasets UI still empty | not scored |
-| Human labels on a span | **Annotate this span** in the drawer | not scored |
+| Nested LLM + tool + retrieval spans | **yes** — LangGraph tree, ChatOllama, tool I/O | **yes** — same hops; extra Prompt / RunnableSequence nesting; I/O in the side panel |
+| MCP-only (no agent) | **yes** — project `mcp-plant-fabric` | **yes** — OTLP; session/tag `mcp-plant-fabric` |
+| Time-to-first-trace | minutes, one process | **hours** on first Compose boot; Tracing unusable on x86 qemu; native arm64 UI is then fast |
+| Datasets → experiments → regression | code evals in-repo; Phoenix Datasets UI still empty | code evals in-repo; Langfuse Datasets / Experiments nav not exercised |
+| Human labels on a span | **Annotate this span** in the drawer | **Annotate** / **Comment** on the trace; Human Annotation in the nav |
 | Self-host / data stays on the machine | yes (ELv2) | yes (MIT core) — six containers |
 | Footprint | light (`uvx arize-phoenix serve`) | Postgres + ClickHouse + Redis + Minio + web + worker |
 

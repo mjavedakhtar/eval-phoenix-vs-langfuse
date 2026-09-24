@@ -4,8 +4,8 @@ OpenTelemetry is configured before FastMCP is imported so this process owns
 the TracerProvider (the conflict the architect hit when another provider was
 already registered).
 
-    uvx arize-phoenix serve
-    uv run python experiments/mcp_server.py
+    MCP_TRACE_BACKEND=phoenix   uv run python experiments/mcp_server.py
+    MCP_TRACE_BACKEND=langfuse  uv run python experiments/mcp_server.py
 """
 
 from __future__ import annotations
@@ -18,16 +18,23 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-from phoenix.otel import register
+_BACKEND = os.getenv("MCP_TRACE_BACKEND", "phoenix").strip().lower()
 
-from phoenix_endpoint import traces_endpoint
+if _BACKEND == "langfuse":
+    from langfuse_otel import register_langfuse_otel
 
-register(
-    project_name=os.getenv("PHOENIX_MCP_PROJECT", "mcp-plant-fabric"),
-    endpoint=traces_endpoint(),
-    protocol="http/protobuf",
-    auto_instrument=False,
-)
+    register_langfuse_otel()
+else:
+    from phoenix.otel import register
+
+    from phoenix_endpoint import traces_endpoint
+
+    register(
+        project_name=os.getenv("PHOENIX_MCP_PROJECT", "mcp-plant-fabric"),
+        endpoint=traces_endpoint(),
+        protocol="http/protobuf",
+        auto_instrument=False,
+    )
 
 from fastmcp import FastMCP
 
@@ -63,8 +70,11 @@ def get_work_orders_tool(asset: str) -> str:
 if __name__ == "__main__":
     port = int(os.getenv("MCP_SERVER_PORT", "8765"))
     print(f"MCP server on http://127.0.0.1:{port}/mcp")
-    print(
-        "Phoenix project: "
-        f"{os.getenv('PHOENIX_MCP_PROJECT', 'mcp-plant-fabric')}"
-    )
+    if _BACKEND == "langfuse":
+        print("OTLP sink: Langfuse (session mcp-plant-fabric)")
+    else:
+        print(
+            "Phoenix project: "
+            f"{os.getenv('PHOENIX_MCP_PROJECT', 'mcp-plant-fabric')}"
+        )
     mcp.run(transport="http", host="127.0.0.1", port=port)

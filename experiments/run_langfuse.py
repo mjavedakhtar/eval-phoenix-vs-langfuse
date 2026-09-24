@@ -22,7 +22,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 os.environ.setdefault("LANGFUSE_BASE_URL", "http://localhost:3000")
 os.environ.setdefault("LANGFUSE_HOST", os.environ["LANGFUSE_BASE_URL"])
 
-from langfuse import get_client
+from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
 from agent import load_golden_set, run_question
@@ -37,7 +37,7 @@ def main() -> None:
             "http://localhost:3000, create a project, and copy the keys."
         )
 
-    langfuse = get_client()
+    langfuse = Langfuse(timeout=120)
     if not langfuse.auth_check():
         raise RuntimeError(
             "Langfuse auth failed. Check LANGFUSE_BASE_URL and the project keys."
