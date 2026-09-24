@@ -8,6 +8,10 @@ An MCP server that exposes the same fake plant tools (graph, time series, alarms
 
 Phoenix should show tool-call spans in a project named **`mcp-plant-fabric`**.
 
+![mcp-plant-fabric spans](images/phoenix/05-mcp-plant-fabric-spans.png)
+
+Captured: **18** spans, `parent_id is None` roots, including `tools/call get_alarms`, `tools/call get_work_orders`, `tools/call search_knowledge_graph`, `tools/call get_timeseries`, plus `tools/list` and `server/discover`. Latency P50 **0 ms** (no model). Project auto-created — it does not dump into `default`.
+
 ## Why it exists
 
 Someone may care about logging the **tool server**, not the agent. This checks: can Phoenix record MCP traffic if nothing “agent-like” is running?
